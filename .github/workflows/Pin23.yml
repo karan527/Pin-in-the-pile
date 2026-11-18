@@ -1,0 +1,56 @@
+
+name: Build Pin In The Pile APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Locate Android project
+        run: |
+          if [ -f settings.gradle ]; then
+            echo "PROJECT_DIR=." >> $GITHUB_ENV
+          elif [ -f PinInThePile/settings.gradle ]; then
+            echo "PROJECT_DIR=PinInThePile" >> $GITHUB_ENV
+          else
+            echo "Android project not found"
+            exit 1
+          fi
+
+      - name: Download Three.js
+        run: |
+          mkdir -p "$PROJECT_DIR/app/src/main/assets"
+          curl -fL --retry 3 \
+            https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js \
+            -o "$PROJECT_DIR/app/src/main/assets/three.min.js"
+
+      - name: Build APK
+        run: |
+          cd "$PROJECT_DIR"
+          gradle assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: PinInThePile-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/app-debug.apk
+          
